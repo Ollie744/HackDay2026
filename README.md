@@ -15,8 +15,12 @@ This solver uses Gaussian elimination in GF(2) to find optimal solutions to Ligh
 ## Requirements
 
 ```bash
-pip install numpy requests
+pip install numpy requests gf2-lin-algebra
 ```
+
+- **numpy** — matrix operations and linear algebra
+- **requests** — HTTP communication with the Lights Out API
+- **gf2-lin-algebra** — high-performance GF(2) solver (Rust backend) used for grids up to 500 variables; the solver falls back to an optimised numpy implementation for larger matrices
 
 ## Usage
 
@@ -50,7 +54,7 @@ python Lights_out.py --create-game YOUR_TEAM_ID random_9x9
 ```
 
 **Parameters:**
-- `TEAM_ID` (optional): Your team UUID. Default: `550e8400-e29b-41d4-a716-446655440000`
+- `TEAM_ID` (optional): Your team UUID. Default: `9faa6787-3b95-419d-8e56-28a22ea025eb`
 - `GAME_TYPE` (optional): Type of game to create. Default: `simple_5x5`
 
 **Available Game Types:**
@@ -68,22 +72,49 @@ python Lights_out.py --solve-game GAME_ID
 
 # With custom team ID
 python Lights_out.py --solve-game GAME_ID YOUR_TEAM_ID
+
+# With debug output
+python Lights_out.py --solve-game GAME_ID --debug
 ```
 
 **Parameters:**
 - `GAME_ID` (required): The UUID of the game to solve
 - `TEAM_ID` (optional): Your team UUID for solution submission
+- `--debug` (optional): Enable detailed solver diagnostics and timing
 
 **Example:**
 ```bash
 python Lights_out.py --solve-game 23371ece-5f16-43dd-bf80-5fca6b139748
 ```
 
-#### Solve Competition
-Solve all games in a competition automatically:
+#### HackDay Quick Command
+Simplified command to solve all games in a competition. Uses parallel processing by default for maximum speed:
 
 ```bash
-# Solve all games in competition (uses default team ID)
+# Solve all 100 games (parallel, default workers)
+python Lights_out.py --hackday COMPETITION_ID
+
+# Custom number of parallel workers
+python Lights_out.py --hackday COMPETITION_ID --workers 8
+
+# Sequential mode (slower, use if parallel causes issues)
+python Lights_out.py --hackday COMPETITION_ID --sequential
+
+# With debug output (reduces performance)
+python Lights_out.py --hackday COMPETITION_ID --debug
+```
+
+**Parameters:**
+- `COMPETITION_ID` (required): The UUID of the competition
+- `--workers N` (optional): Number of parallel threads (default: 2× CPU cores, capped at 20)
+- `--sequential` (optional): Disable parallel processing and solve games one at a time
+- `--debug` (optional): Enable detailed debug output (slower)
+
+#### Solve Competition
+Solve all games in a competition with more control over team ID and game range:
+
+```bash
+# Solve all games in competition (parallel by default)
 python Lights_out.py --solve-competition COMPETITION_ID
 
 # With custom team ID
@@ -91,6 +122,12 @@ python Lights_out.py --solve-competition COMPETITION_ID YOUR_TEAM_ID
 
 # Solve specific range of games (e.g., games 1-10 only)
 python Lights_out.py --solve-competition COMPETITION_ID YOUR_TEAM_ID 1 10
+
+# With 16 parallel workers
+python Lights_out.py --solve-competition COMPETITION_ID --workers 16
+
+# Sequential mode
+python Lights_out.py --solve-competition COMPETITION_ID --sequential
 ```
 
 **Parameters:**
@@ -98,6 +135,42 @@ python Lights_out.py --solve-competition COMPETITION_ID YOUR_TEAM_ID 1 10
 - `TEAM_ID` (optional): Your team UUID for solution submission
 - `START_GAME` (optional): First game number to solve (default: 1)
 - `END_GAME` (optional): Last game number to solve (default: all games)
+- `--workers N` (optional): Number of parallel threads
+- `--sequential` (optional): Use sequential processing instead of parallel
+- `--debug` (optional): Enable detailed debug output
+
+### 3. Parallelisation
+
+Competition solving uses **parallel processing by default** to maximise throughput. Games are fetched, solved, and submitted concurrently using a thread pool, which is optimal for the I/O-bound HTTP work involved.
+
+| Option | Behaviour |
+|---|---|
+| *(default)* | Parallel with `2 × CPU cores` threads (capped at 20) |
+| `--workers N` | Set a custom number of parallel threads |
+| `--sequential` | Process games one at a time |
+
+The solver also uses **HTTP connection pooling** (persistent sessions with up to 16 pooled connections) to avoid the overhead of establishing a new TCP connection for every API call.
+
+**Performance tips:**
+- More workers generally means faster solving (up to ~16 workers for this API)
+- Use `--sequential` only if you encounter issues with parallel mode
+- Avoid `--debug` during competitions for maximum speed
+
+### 4. Test Solver Performance
+Benchmark the solver across different grid sizes:
+
+```bash
+python Lights_out.py --test-performance
+```
+
+This tests grids from 5×5 up to 100×100 and reports solve times.
+
+### 5. Help
+Show all available commands and options:
+
+```bash
+python Lights_out.py --help
+```
 
 **Examples:**
 ```bash
